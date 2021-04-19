@@ -48,8 +48,10 @@ impl IFileSystem for LocalFS {
             .create_new(true)
             .open(p.as_path())
             .with_context(|| format!("LocalFS: fail to open {}", path.as_ref().display()))?;
+
         f.write_all(data)
             .with_context(|| format!("LocalFS: fail to write {}", path.as_ref().display()))?;
+
         f.sync_all()
             .with_context(|| format!("LocalFS: fail to sync {}", path.as_ref().display()))?;
 
