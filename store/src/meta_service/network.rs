@@ -21,6 +21,7 @@ use async_raft::raft::InstallSnapshotRequest;
 use async_raft::raft::InstallSnapshotResponse;
 use async_raft::raft::VoteRequest;
 use async_raft::raft::VoteResponse;
+use async_raft::MessageSummary;
 use async_raft::NodeId;
 use async_raft::RaftNetwork;
 use common_tracing::tracing;
@@ -95,7 +96,7 @@ impl Network {
 
 #[async_trait]
 impl RaftNetwork<LogEntry> for Network {
-    #[tracing::instrument(level = "debug", skip(self), fields(id=self.sto.id))]
+    #[tracing::instrument(level = "debug", skip(self, rpc), fields(id=self.sto.id, rpc=%rpc.summary()))]
     async fn append_entries(
         &self,
         target: NodeId,
@@ -117,7 +118,7 @@ impl RaftNetwork<LogEntry> for Network {
         Ok(resp)
     }
 
-    #[tracing::instrument(level = "debug", skip(self), fields(id=self.sto.id))]
+    #[tracing::instrument(level = "debug", skip(self, rpc), fields(id=self.sto.id, rpc=%rpc.summary()))]
     async fn install_snapshot(
         &self,
         target: NodeId,
@@ -137,7 +138,7 @@ impl RaftNetwork<LogEntry> for Network {
         Ok(resp)
     }
 
-    #[tracing::instrument(level = "debug", skip(self), fields(id=self.sto.id))]
+    #[tracing::instrument(level = "debug", skip(self, rpc), fields(id=self.sto.id, rpc=%rpc.summary()))]
     async fn vote(&self, target: NodeId, rpc: VoteRequest) -> anyhow::Result<VoteResponse> {
         tracing::debug!("vote req to: id={} {:?}", target, rpc);
 
