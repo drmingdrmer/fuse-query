@@ -15,7 +15,6 @@
 use async_raft::raft::Entry;
 use async_raft::raft::EntryConfigChange;
 use async_raft::raft::EntryPayload;
-use async_raft::raft::EntrySnapshotPointer;
 use async_raft::raft::MembershipConfig;
 use async_raft::storage::HardState;
 use async_raft::LogId;
@@ -28,6 +27,7 @@ use crate::meta_service::state_machine::SerializableSnapshot;
 use crate::meta_service::state_machine_meta::StateMachineMetaKey::LastMembership;
 use crate::meta_service::testing::pretty_snapshot;
 use crate::meta_service::testing::snapshot_logs;
+use crate::meta_service::LogIndex;
 use crate::meta_service::MetaStore;
 use crate::meta_service::StateMachineMetaValue;
 use crate::tests::service::new_test_context;
@@ -116,8 +116,7 @@ async fn test_meta_store_get_membership_from_log() -> anyhow::Result<()> {
     let logs = vec![
         Entry {
             log_id: LogId { term: 1, index: 2 },
-            payload: EntryPayload::SnapshotPointer(EntrySnapshotPointer {
-                id: "pseudo-id".to_string(),
+            payload: EntryPayload::ConfigChange(EntryConfigChange {
                 membership: c1.clone(),
             }),
         },
@@ -145,7 +144,7 @@ async fn test_meta_store_get_membership_from_log() -> anyhow::Result<()> {
             members_after_consensus: None,
         },
         got,
-        "no membership found in log, returning a default value"
+        "no membership found in log or state machine, returning a default value"
     );
 
     // with snapshot meta:
@@ -174,11 +173,11 @@ async fn test_meta_store_get_membership_from_log() -> anyhow::Result<()> {
     let got = ms.get_membership_from_log(Some(1)).await?;
     assert_eq!(
         MembershipConfig {
-            members: btreeset![3],
+            members: btreeset![4],
             members_after_consensus: None,
         },
         got,
-        "default membership"
+        "load from state machine"
     );
 
     Ok(())
@@ -268,13 +267,6 @@ async fn test_meta_store_do_log_compaction_1_snap_ptr_1_log() -> anyhow::Result<
         },
         curr_snap.meta.membership
     );
-    assert_eq!(
-        MembershipConfig {
-            members: btreeset![4, 5, 6],
-            members_after_consensus: None,
-        },
-        ms.get_membership_config().await?
-    );
 
     tracing::info!("--- check snapshot");
     {
@@ -301,7 +293,7 @@ async fn test_meta_store_do_log_compaction_1_snap_ptr_1_log() -> anyhow::Result<
     tracing::info!("--- check logs");
     {
         let log_indexes = ms.log.range_keys(..)?;
-        assert_eq!(vec![4u64, 5u64, 6, 8, 9], log_indexes);
+        assert_eq!(vec![5u64, 6, 8, 9], log_indexes);
     }
 
     Ok(())
@@ -355,7 +347,7 @@ async fn test_meta_store_do_log_compaction_all_logs_with_memberchange() -> anyho
     tracing::info!("--- check logs");
     {
         let log_indexes = ms.log.range_keys(..)?;
-        assert_eq!(vec![9u64], log_indexes);
+        assert_eq!(Vec::<LogIndex>::new(), log_indexes);
     }
 
     Ok(())

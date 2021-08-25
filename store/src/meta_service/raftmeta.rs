@@ -287,18 +287,18 @@ impl MetaStore {
 
         for rkv in it {
             let (_log_index, ent) = rkv?;
-            match &ent.payload {
-                EntryPayload::ConfigChange(cfg) => {
-                    return Ok(cfg.membership.clone());
-                }
-                EntryPayload::SnapshotPointer(snap_ptr) => {
-                    return Ok(snap_ptr.membership.clone());
-                }
-                _ => {}
+            if let EntryPayload::ConfigChange(cfg) = &ent.payload {
+                return Ok(cfg.membership.clone());
             }
         }
 
-        Ok(MembershipConfig::new_initial(self.id))
+        // There is no membership config in logs.
+        // Try to read it from state machine.
+        let mem = self.state_machine.read().await.get_membership()?;
+
+        let mem = mem.unwrap_or_else(|| MembershipConfig::new_initial(self.id));
+
+        Ok(mem)
     }
 }
 
@@ -449,12 +449,7 @@ impl RaftStorage<LogEntry, AppliedState> for MetaStore {
 
         // 2. Remove logs that are included in snapshot.
 
-        // When encountered a snapshot pointer, raft replication is switched to snapshot replication.
-        self.log
-            .insert(&Entry::new_snapshot_pointer(&snapshot.meta))
-            .await?;
-
-        self.log.range_remove(0..last_applied_log.index).await?;
+        self.log.range_remove(0..=last_applied_log.index).await?;
 
         tracing::debug!("log range_remove complete");
 
