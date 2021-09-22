@@ -50,8 +50,6 @@ pub mod raft_types;
 pub mod raftmeta;
 
 #[cfg(test)]
-mod meta_service_impl_test;
-#[cfg(test)]
 mod meta_store_test;
 #[cfg(test)]
 mod raft_log_test;

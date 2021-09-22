@@ -1,4 +1,4 @@
-// Copyright 2020 Datafuse Labs.
+// Copyright 2021 Datafuse Labs.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,20 +16,20 @@ use async_raft::State;
 use common_runtime::tokio;
 #[allow(unused_imports)]
 use log::info;
+use metasrv::meta_service::AppliedState;
+use metasrv::meta_service::Cmd;
+use metasrv::meta_service::GetReq;
+use metasrv::meta_service::LogEntry;
+use metasrv::meta_service::MetaNode;
+use metasrv::meta_service::MetaServiceClient;
+use metasrv::meta_service::RetryableError;
+use metasrv::tests::assert_meta_connection;
+use metasrv::tests::init_meta_ut;
+use metasrv::tests::service::new_test_context;
 use pretty_assertions::assert_eq;
 
-use crate::meta_service::AppliedState;
-use crate::meta_service::Cmd;
-use crate::meta_service::GetReq;
-use crate::meta_service::LogEntry;
-use crate::meta_service::MetaNode;
-use crate::meta_service::MetaServiceClient;
-use crate::meta_service::RetryableError;
-use crate::tests::assert_meta_connection;
-use crate::tests::service::new_test_context;
-
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-async fn test_meta_server_add_file() -> anyhow::Result<()> {
+async fn test_add_file() -> anyhow::Result<()> {
     let (_log_guards, ut_span) = init_meta_ut!();
     let _ent = ut_span.enter();
 
@@ -41,7 +41,7 @@ async fn test_meta_server_add_file() -> anyhow::Result<()> {
 
     let mut client = MetaServiceClient::connect(format!("http://{}", addr)).await?;
 
-    let cases = crate::meta_service::raftmeta_test::cases_add_file();
+    let cases = metasrv::meta_service::raftmeta_test::cases_add_file();
 
     for (name, txid, k, v, want_prev, want_rst) in cases.iter() {
         let req = LogEntry {
@@ -70,7 +70,7 @@ async fn test_meta_server_add_file() -> anyhow::Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-async fn test_meta_server_set_file() -> anyhow::Result<()> {
+async fn test_set_file() -> anyhow::Result<()> {
     let (_log_guards, ut_span) = init_meta_ut!();
     let _ent = ut_span.enter();
 
@@ -82,7 +82,7 @@ async fn test_meta_server_set_file() -> anyhow::Result<()> {
 
     let mut client = MetaServiceClient::connect(format!("http://{}", addr)).await?;
 
-    let cases = crate::meta_service::raftmeta_test::cases_set_file();
+    let cases = metasrv::meta_service::raftmeta_test::cases_set_file();
 
     for (name, txid, k, v, want_prev, want_rst) in cases.iter() {
         let req = LogEntry {
@@ -111,7 +111,7 @@ async fn test_meta_server_set_file() -> anyhow::Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-async fn test_meta_server_add_set_get() -> anyhow::Result<()> {
+async fn test_add_set_get() -> anyhow::Result<()> {
     // Test Cmd::AddFile, Cmd::SetFile, Cma::GetFile
 
     let (_log_guards, ut_span) = init_meta_ut!();
@@ -209,7 +209,7 @@ async fn test_meta_server_add_set_get() -> anyhow::Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-async fn test_meta_server_incr_seq() -> anyhow::Result<()> {
+async fn test_incr_seq() -> anyhow::Result<()> {
     let (_log_guards, ut_span) = init_meta_ut!();
     let _ent = ut_span.enter();
 
@@ -221,7 +221,7 @@ async fn test_meta_server_incr_seq() -> anyhow::Result<()> {
 
     let mut client = MetaServiceClient::connect(format!("http://{}", addr)).await?;
 
-    let cases = crate::meta_service::raftmeta_test::cases_incr_seq();
+    let cases = metasrv::meta_service::raftmeta_test::cases_incr_seq();
 
     for (name, txid, k, want) in cases.iter() {
         let req = LogEntry {
@@ -246,7 +246,7 @@ async fn test_meta_server_incr_seq() -> anyhow::Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-async fn test_meta_cluster_write_on_non_leader() -> anyhow::Result<()> {
+async fn test_cluster_write_on_non_leader() -> anyhow::Result<()> {
     // - Bring up a cluster of one leader and one non-voter
     // - Assert that writing on the non-voter returns ForwardToLeader error
 
